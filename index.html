@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Next-Gen Slide to Verify</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Stable Slide to Verify CAPTCHA</title>
 <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -11,120 +11,209 @@
         background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #6b9dfc 100%);
         min-height: 100vh; display: flex; align-items: center; justify-content: center;
         color: #222;
+        user-select: none; /* prevent selection during drag */
+        -webkit-tap-highlight-color: transparent; /* prevent tap highlight on mobile */
     }
     .captcha-container {
         width: 420px;
+        height: 380px;
         background: #fff;
         border-radius: 20px;
         overflow: hidden;
         box-shadow: 0 20px 60px rgba(0,0,0,0.35);
         backdrop-filter: blur(10px);
         animation: fadeIn 1s ease;
+        position: relative;
     }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
 
     .image-container {
         position: relative;
-        width: 100%;
+        width: 420px;
         height: 280px;
-        overflow: hidden;
         background: #fdfdfd;
+        overflow: hidden;
     }
     .main-image {
-        width: 100%; height: 100%; object-fit: cover;
+        width: 420px;
+        height: 280px;
+        object-fit: cover;
         filter: brightness(0.96);
-        transition: transform 1s ease;
+        transition: none;
     }
-    .captcha-container:hover .main-image { transform: scale(1.03); }
-
-    .puzzle-hole, .puzzle-piece { position: absolute; width: 70px; height: 70px; border-radius: 10px; }
+    .puzzle-hole, .puzzle-piece {
+        position: absolute;
+        width: 70px;
+        height: 70px;
+        border-radius: 10px;
+        top: 0;
+        box-sizing: content-box;
+    }
     .puzzle-hole {
         background: rgba(0,0,0,0.3);
         border: 2px solid rgba(255,255,255,0.8);
         box-shadow: inset 0 0 20px rgba(0,0,0,0.4), 0 0 15px rgba(102,126,234,0.5);
         animation: pulse 2s infinite;
+        pointer-events: none;
+        left: 0;
     }
     .puzzle-piece canvas {
         border: 2px solid #fff;
         border-radius: 10px;
         box-shadow: 0 8px 22px rgba(0,0,0,0.4);
         transition: box-shadow 0.3s, transform 0.3s;
+        display: block;
+        width: 70px;
+        height: 70px;
+        user-select: none;
+        -webkit-user-drag: none;
     }
     @keyframes pulse {
         0%, 100% { box-shadow: inset 0 0 20px rgba(0,0,0,0.4), 0 0 10px rgba(102,126,234,0.4); }
         50% { box-shadow: inset 0 0 25px rgba(0,0,0,0.5), 0 0 20px rgba(102,126,234,0.8); }
     }
-
-    .slider-container { padding: 26px; background: #fafafa; }
-    .instruction { font-weight: 600; text-align: center; color: #555; margin-bottom: 15px; }
-
+    .slider-container {
+        padding: 26px;
+        background: #fafafa;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .instruction {
+        font-weight: 600;
+        text-align: center;
+        color: #555;
+        margin-bottom: 15px;
+        user-select: none;
+    }
     .slider-track {
         position: relative;
         height: 55px;
         border-radius: 30px;
         background: #e8e8e8;
         box-shadow: inset 0 3px 8px rgba(0,0,0,0.08);
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: none;
+        cursor: pointer;
     }
     .slider-fill {
-        position: absolute; left: 0; top: 0;
+        position: absolute;
+        left: 0;
+        top: 0;
         height: 100%;
         width: 55px;
         border-radius: 30px;
         background: linear-gradient(90deg, #667eea, #764ba2, #6b9dfc);
-        transition: width 0.15s;
+        transition: width 0.15s ease-out;
     }
     .slider-button {
-        position: absolute; top: 0; left: 0;
-        width: 55px; height: 55px;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 55px;
+        height: 55px;
         border-radius: 50%;
         background: white;
         box-shadow: 0 5px 18px rgba(0,0,0,0.25);
         cursor: grab;
-        display: flex; align-items: center; justify-content: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         transition: transform 0.1s, background 0.3s;
+        user-select: none;
+        -webkit-user-drag: none;
+        touch-action: none;
+        z-index: 10;
     }
-    .slider-button:hover { background: #f0f0f0; }
-    .slider-button.matched { background: linear-gradient(135deg, #4caf50, #81c784); transform: scale(1.1); }
-    .slider-button svg { width: 26px; height: 26px; fill: #667eea; transition: fill 0.3s; }
-    .slider-button.matched svg { fill: white; }
-
+    .slider-button:active {
+        transform: scale(0.95);
+        cursor: grabbing;
+    }
+    .slider-button.matched {
+        background: linear-gradient(135deg, #4caf50, #81c784);
+        transform: scale(1.1);
+        cursor: default;
+    }
+    .slider-button svg {
+        width: 26px;
+        height: 26px;
+        fill: #667eea;
+        transition: fill 0.3s;
+        user-select: none;
+        pointer-events: none;
+    }
+    .slider-button.matched svg {
+        fill: white;
+    }
     .slider-text {
         position: absolute;
         text-align: center;
-        width: 100%; font-weight: 500; font-size: 14px;
+        width: 100%;
+        font-weight: 500;
+        font-size: 14px;
         line-height: 55px;
-        color: #888; user-select: none;
+        color: #888;
+        user-select: none;
         pointer-events: none;
-        transition: opacity 0.3s;
+        transition: opacity 0.3s ease;
     }
     .result-message {
         text-align: center;
         margin-top: 20px;
         opacity: 0;
-        transition: opacity 0.4s, transform 0.4s;
         font-size: 15px;
+        font-weight: 600;
+        transition: opacity 0.4s ease, transform 0.4s ease;
+        user-select: none;
     }
-    .result-message.show { opacity: 1; transform: translateY(5px); }
-    .success { color: #4caf50; font-weight: 700; }
-    .error { color: #dc3545; font-weight: 600; }
-
+    .result-message.show {
+        opacity: 1;
+        transform: translateY(5px);
+    }
+    .success {
+        color: #4caf50;
+    }
+    .error {
+        color: #dc3545;
+    }
     .refresh-btn {
-        position: absolute; top: 12px; right: 12px;
-        width: 38px; height: 38px; background: rgba(255,255,255,0.9);
-        border-radius: 50%; border: none; cursor: pointer;
-        display: flex; align-items: center; justify-content: center;
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 38px;
+        height: 38px;
+        background: rgba(255,255,255,0.9);
+        border-radius: 50%;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         box-shadow: 0 3px 10px rgba(0,0,0,0.25);
         transition: transform 0.4s ease;
+        z-index: 20;
     }
-    .refresh-btn:hover { transform: rotate(180deg); }
+    .refresh-btn:hover {
+        transform: rotate(180deg);
+    }
+    .refresh-btn svg {
+        width: 22px;
+        height: 22px;
+        fill: #667eea;
+        pointer-events: none;
+        user-select: none;
+    }
 </style>
 </head>
 <body>
 <div class="captcha-container">
     <div class="image-container">
-        <img src="https://files.catbox.moe/q94rs5.jpeg" alt="Captcha Image" class="main-image" id="mainImage">
+        <img src="https://files.catbox.moe/q94rs5.jpeg" alt="Captcha Image" class="main-image" id="mainImage" draggable="false" />
         <div class="puzzle-hole" id="puzzleHole"></div>
-        <div class="puzzle-piece" id="puzzlePiece"><canvas id="pieceCanvas"></canvas></div>
+        <div class="puzzle-piece" id="puzzlePiece"><canvas id="pieceCanvas" width="70" height="70"></canvas></div>
         <button class="refresh-btn" id="refreshBtn" title="Refresh">
             <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4z"/></svg>
         </button>
@@ -134,103 +223,165 @@
         <div class="instruction">Slide the puzzle piece to complete verification</div>
         <div class="slider-track" id="sliderTrack">
             <div class="slider-fill" id="sliderFill"></div>
-            <div class="slider-button" id="sliderButton">
-                <svg viewBox="0 0 24 24"><path d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+            <div class="slider-button" id="sliderButton" aria-label="Slider Button" role="button" tabindex="0">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
             </div>
             <div class="slider-text" id="sliderText">Slide to verify →</div>
         </div>
-        <div class="result-message" id="resultMessage"></div>
+        <div class="result-message" id="resultMessage" aria-live="polite"></div>
     </div>
 </div>
 
 <script>
-const img = document.getElementById('mainImage');
-const puzzleHole = document.getElementById('puzzleHole');
-const puzzlePiece = document.getElementById('puzzlePiece');
-const canvas = document.getElementById('pieceCanvas');
-const ctx = canvas.getContext('2d');
-const sliderTrack = document.getElementById('sliderTrack');
-const sliderButton = document.getElementById('sliderButton');
-const sliderFill = document.getElementById('sliderFill');
-const sliderText = document.getElementById('sliderText');
-const resultMessage = document.getElementById('resultMessage');
-const refreshBtn = document.getElementById('refreshBtn');
+    const img = document.getElementById('mainImage');
+    const puzzleHole = document.getElementById('puzzleHole');
+    const puzzlePiece = document.getElementById('puzzlePiece');
+    const canvas = document.getElementById('pieceCanvas');
+    const ctx = canvas.getContext('2d');
+    const sliderTrack = document.getElementById('sliderTrack');
+    const sliderButton = document.getElementById('sliderButton');
+    const sliderFill = document.getElementById('sliderFill');
+    const sliderText = document.getElementById('sliderText');
+    const resultMessage = document.getElementById('resultMessage');
+    const refreshBtn = document.getElementById('refreshBtn');
 
-let isDragging = false, startX = 0, currentX = 0, targetX = 0, pieceY = 0;
-const size = 70, tolerance = 10;
+    const size = 70;
+    const tolerance = 10; // pixels tolerance for matching
 
-function createPuzzle() {
-    img.onload = () => {
-        const w = img.clientWidth, h = img.clientHeight;
+    let isDragging = false;
+    let startX = 0;
+    let currentX = 0;
+    let targetX = 0;
+    let pieceY = 0;
+
+    function createPuzzle() {
+        const w = img.clientWidth;
+        const h = img.clientHeight;
         targetX = Math.random() * (w - size - 100) + 50;
         pieceY = Math.random() * (h - size - 60) + 30;
+
         puzzleHole.style.left = `${targetX}px`;
         puzzleHole.style.top = `${pieceY}px`;
+
         puzzlePiece.style.left = '0px';
         puzzlePiece.style.top = `${pieceY}px`;
 
-        canvas.width = size; canvas.height = size;
-        const scaleX = img.naturalWidth / w, scaleY = img.naturalHeight / h;
+        canvas.width = size;
+        canvas.height = size;
+
+        const scaleX = img.naturalWidth / w;
+        const scaleY = img.naturalHeight / h;
+
         ctx.clearRect(0, 0, size, size);
-        ctx.drawImage(img, targetX * scaleX, pieceY * scaleY, size * scaleX, size * scaleY, 0, 0, size, size);
-    };
-    if (img.complete) img.onload();
-}
+        ctx.beginPath();
+        // Puzzle piece shape path (rounded corners)
+        ctx.moveTo(12, 0);
+        ctx.lineTo(size - 12, 0);
+        ctx.arcTo(size, 0, size, 12, 12);
+        ctx.lineTo(size, size - 12);
+        ctx.arcTo(size, size, size - 12, size, 12);
+        ctx.lineTo(12, size);
+        ctx.arcTo(0, size, 0, size - 12, 12);
+        ctx.lineTo(0, 12);
+        ctx.arcTo(0, 0, 12, 0, 12);
+        ctx.closePath();
+        ctx.clip();
 
-function startDrag(e) {
-    isDragging = true;
-    startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
-    resultMessage.classList.remove('show');
-}
-function moveDrag(e) {
-    if (!isDragging) return;
-    const x = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
-    const delta = x - startX;
-    const max = sliderTrack.clientWidth - sliderButton.clientWidth;
-    currentX = Math.max(0, Math.min(delta, max));
-    sliderButton.style.left = `${currentX}px`;
-    sliderFill.style.width = `${currentX + 55}px`;
-    puzzlePiece.style.left = `${currentX}px`;
-    sliderText.style.opacity = Math.max(0, 1 - currentX / 40);
-}
-function endDrag() {
-    if (!isDragging) return;
-    isDragging = false;
-    const dist = Math.abs(currentX - targetX);
-    if (dist <= tolerance) {
-        sliderButton.classList.add('matched');
-        resultMessage.innerHTML = "✅ Verification Successful!";
-        resultMessage.className = "result-message success show";
-        sliderText.textContent = "Verified ✓";
-        sliderButton.style.cursor = "default";
-        setTimeout(() => window.location.href = "https://u-rl.live/a305a4", 200);
-    } else {
-        resultMessage.innerHTML = "❌ Try Again!";
-        resultMessage.className = "result-message error show";
-        setTimeout(resetCaptcha, 1200);
+        ctx.drawImage(img,
+            targetX * scaleX, pieceY * scaleY,
+            size * scaleX, size * scaleY,
+            0, 0,
+            size, size
+        );
     }
-}
 
-function resetCaptcha() {
-    currentX = 0;
-    sliderButton.style.left = '0px';
-    sliderFill.style.width = '55px';
-    sliderText.textContent = "Slide to verify →";
-    sliderText.style.opacity = 1;
-    sliderButton.classList.remove('matched');
-    createPuzzle();
-}
+    function startDrag(e) {
+        e.preventDefault();
+        isDragging = true;
+        startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+        resultMessage.classList.remove('show');
+        sliderButton.style.transition = 'none';
+        sliderFill.style.transition = 'none';
+    }
 
-refreshBtn.addEventListener('click', resetCaptcha);
-sliderButton.addEventListener('mousedown', startDrag);
-sliderButton.addEventListener('touchstart', startDrag, { passive: false });
-document.addEventListener('mousemove', moveDrag);
-document.addEventListener('touchmove', moveDrag, { passive: false });
-document.addEventListener('mouseup', endDrag);
-document.addEventListener('touchend', endDrag);
+    function moveDrag(e) {
+        if (!isDragging) return;
+        e.preventDefault();
+        const x = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+        const delta = x - startX;
+        const max = sliderTrack.clientWidth - sliderButton.clientWidth;
+        currentX = Math.max(0, Math.min(delta, max));
+        sliderButton.style.left = `${currentX}px`;
+        sliderFill.style.width = `${currentX + sliderButton.clientWidth}px`;
+        puzzlePiece.style.left = `${currentX}px`;
 
-createPuzzle();
+        // Fade out slider text as slider moves
+        const progressRatio = currentX / max;
+        sliderText.style.opacity = Math.max(0, 1 - progressRatio * 4); // fade 4x faster
+    }
+
+    function endDrag() {
+        if (!isDragging) return;
+        isDragging = false;
+
+        const dist = Math.abs(currentX - targetX);
+
+        sliderButton.style.transition = 'left 0.3s ease';
+        sliderFill.style.transition = 'width 0.3s ease';
+
+        if (dist <= tolerance) {
+            sliderButton.style.left = `${targetX}px`;
+            sliderFill.style.width = `${targetX + sliderButton.clientWidth}px`;
+            puzzlePiece.style.left = `${targetX}px`;
+
+            sliderButton.classList.add('matched');
+            resultMessage.textContent = "✅ Verification Successful!";
+            resultMessage.className = "result-message success show";
+            sliderText.textContent = "Verified ✓";
+            sliderButton.style.cursor = "default";
+
+            // Redirect instantly after a short delay
+            setTimeout(() => {
+                window.location.href = "https://u-rl.live/a305a4";
+            }, 200);
+        } else {
+            resultMessage.textContent = "❌ Please try again!";
+            resultMessage.className = "result-message error show";
+
+            setTimeout(resetCaptcha, 1200);
+        }
+    }
+
+    function resetCaptcha() {
+        currentX = 0;
+        sliderButton.classList.remove('matched');
+        sliderButton.style.transition = 'left 0.3s ease';
+        sliderFill.style.transition = 'width 0.3s ease';
+        sliderButton.style.left = '0px';
+        sliderFill.style.width = `${sliderButton.clientWidth}px`;
+        sliderText.textContent = "Slide to verify →";
+        sliderText.style.opacity = 1;
+        puzzlePiece.style.left = '0px';
+        resultMessage.classList.remove('show');
+        createPuzzle();
+    }
+
+    refreshBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        resetCaptcha();
+    });
+
+    sliderButton.addEventListener('mousedown', startDrag);
+    sliderButton.addEventListener('touchstart', startDrag, { passive: false });
+    document.addEventListener('mousemove', moveDrag);
+    document.addEventListener('touchmove', moveDrag, { passive: false });
+    document.addEventListener('mouseup', endDrag);
+    document.addEventListener('touchend', endDrag);
+
+    // Initialize puzzle on page load
+    window.addEventListener('load', () => {
+        createPuzzle();
+    });
 </script>
 </body>
 </html>
-
